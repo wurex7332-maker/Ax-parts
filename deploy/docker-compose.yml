@@ -1,0 +1,47 @@
+# 练习用部署编排：两个容器（后端 + Caddy），数据落在宿主机 ./data 目录
+# 使用前：cp .env.example .env 并填写 DOMAIN / JWT_SECRET
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    env_file: .env
+    environment:
+      DATABASE_PATH: /app/data/ax-parts.sqlite
+    volumes:
+      # 关键：数据库放在宿主机目录，容器重建不丢数据，也方便直接备份/拷走
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Caddy 的证书与账户数据，删掉会重新申请证书
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

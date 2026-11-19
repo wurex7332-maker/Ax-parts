@@ -6,3 +6,8 @@ data/
 *.sqlite-journal
 *.log
 .DS_Store
+
+# 部署产物与本地配置（不要提交）
+deploy/.env
+deploy/backups/
+deploy/data/
