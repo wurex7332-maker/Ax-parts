@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/Dialog';
 import { Pagination, TableWrap } from '../../../components/ui/Table';
 import { Select, TextInput } from '../../../components/ui/Field';
-import { CATEGORIES } from '../../../domain/enums';
+import { useDictionaries } from '../../../hooks/useDictionaries';
 import { centsToYuanLabel, formatDate } from '../../../domain/format';
 import type { Material } from '../../../domain/types';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -27,6 +27,7 @@ export function MaterialListPage() {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState('');
   const [pendingDisable, setPendingDisable] = useState<Material | null>(null);
+  const categories = useDictionaries('CATEGORY');
 
   const query = {
     page,
@@ -96,9 +97,9 @@ export function MaterialListPage() {
             }}
           >
             <option value="">全部类别</option>
-            {CATEGORIES.map((item) => (
-              <option key={item} value={item}>
-                {item}
+            {categories.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
               </option>
             ))}
           </Select>

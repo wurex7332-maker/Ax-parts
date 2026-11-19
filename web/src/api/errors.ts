@@ -16,6 +16,15 @@ export const ERROR_CODES = [
   'DUPLICATE_ORDER',
   'IDEMPOTENCY_CONFLICT',
   'INTERNAL_ERROR',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'INVALID_CREDENTIALS',
+  'USER_NOT_FOUND',
+  'DUPLICATE_USER',
+  'USER_DISABLED',
+  'DICTIONARY_NOT_FOUND',
+  'DUPLICATE_DICTIONARY',
+  'DICTIONARY_IN_USE',
 ] as const;
 
 export type BusinessErrorCode = (typeof ERROR_CODES)[number];
@@ -38,6 +47,15 @@ const MESSAGES: Record<ErrorCode, string> = {
   DUPLICATE_ORDER: '该申请已存在采购订单',
   IDEMPOTENCY_CONFLICT: '幂等键已被其他请求使用',
   INTERNAL_ERROR: '服务内部错误',
+  UNAUTHORIZED: '登录已过期，请重新登录',
+  FORBIDDEN: '当前账号无权执行该操作',
+  INVALID_CREDENTIALS: '用户名或密码错误',
+  USER_NOT_FOUND: '用户不存在',
+  DUPLICATE_USER: '用户名已存在',
+  USER_DISABLED: '该账号已停用',
+  DICTIONARY_NOT_FOUND: '字典项不存在',
+  DUPLICATE_DICTIONARY: '字典项已存在',
+  DICTIONARY_IN_USE: '该字典项仍被物料使用，不能停用',
   NETWORK_ERROR:
     '无法连接后端服务。若为联调模式，请通过代理访问（npm run dev 或 npm run preview），直连 3000 端口会因后端未启用 CORS 而失败。',
   UNKNOWN: '操作失败，请稍后重试',

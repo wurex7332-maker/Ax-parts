@@ -5,6 +5,12 @@
  */
 import type {
   AdjustResult,
+  AppUser,
+  AuditLog,
+  AuthResult,
+  DictionaryItem,
+  DictionaryType,
+  Role,
   AdjustType,
   AlertItem,
   AppNotification,
@@ -87,6 +93,62 @@ export interface ReportQuery {
   to?: string;
 }
 
+export interface LoginInput {
+  username: string;
+  password: string;
+}
+
+export interface CreateUserInput {
+  username: string;
+  displayName: string;
+  password: string;
+  role: Role;
+}
+
+export interface UpdateUserInput {
+  displayName?: string;
+  role?: Role;
+  status?: 'ENABLED' | 'DISABLED';
+}
+
+export interface UserQuery {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  role?: Role;
+  status?: 'ENABLED' | 'DISABLED';
+}
+
+export interface AuditQuery {
+  page?: number;
+  pageSize?: number;
+  actor?: string;
+  action?: string;
+  resource?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface DictionaryQuery {
+  page?: number;
+  pageSize?: number;
+  type?: DictionaryType;
+  includeDisabled?: '0' | '1';
+}
+
+export interface CreateDictionaryInput {
+  type: DictionaryType;
+  value: string;
+  label: string;
+  sortOrder?: number;
+}
+
+export interface UpdateDictionaryInput {
+  label?: string;
+  sortOrder?: number;
+  enabled?: boolean;
+}
+
 export interface CreateMaterialInput {
   sku: string;
   name: string;
@@ -152,6 +214,30 @@ export interface CreateRequestInput {
 export interface ApiPort {
   readonly mode: 'mock' | 'http';
   health(): Promise<{ ok: boolean }>;
+
+  auth: {
+    login(input: LoginInput): Promise<AuthResult>;
+    me(): Promise<AppUser>;
+    logout(): Promise<void>;
+  };
+
+  users: {
+    list(query: UserQuery): Promise<Page<AppUser>>;
+    create(input: CreateUserInput): Promise<AppUser>;
+    update(id: number, patch: UpdateUserInput): Promise<AppUser>;
+    resetPassword(id: number, password: string): Promise<{ ok: boolean; username: string }>;
+    changeOwnPassword(password: string): Promise<{ ok: boolean }>;
+  };
+
+  audit: {
+    list(query: AuditQuery): Promise<Page<AuditLog>>;
+  };
+
+  dictionaries: {
+    list(query: DictionaryQuery): Promise<Page<DictionaryItem>>;
+    create(input: CreateDictionaryInput): Promise<DictionaryItem>;
+    update(id: number, patch: UpdateDictionaryInput): Promise<DictionaryItem>;
+  };
 
   materials: {
     /** 列表项不含 currentStock（后端契约限制），需要库存请查台账 */

@@ -8,7 +8,10 @@ export type Tag =
   | 'reports'
   | 'purchase.requests'
   | 'purchase.orders'
-  | 'notifications';
+  | 'notifications'
+  | 'users'
+  | 'audit'
+  | 'dictionaries';
 
 export type MutationName =
   | 'material.create'
@@ -25,7 +28,12 @@ export type MutationName =
   | 'purchase.close'
   | 'purchase.createOrder'
   | 'purchase.arrive'
-  | 'notification.read';
+  | 'notification.read'
+  | 'user.create'
+  | 'user.update'
+  | 'user.resetPassword'
+  | 'dictionary.create'
+  | 'dictionary.update';
 
 export const INVALIDATE: Record<MutationName, Tag[]> = {
   'material.create': ['materials', 'stock', 'alerts', 'dashboard', 'reports'],
@@ -52,4 +60,9 @@ export const INVALIDATE: Record<MutationName, Tag[]> = {
     'notifications',
   ],
   'notification.read': ['notifications'],
+  'user.create': ['users', 'audit'],
+  'user.update': ['users', 'audit'],
+  'user.resetPassword': ['users', 'audit'],
+  'dictionary.create': ['dictionaries', 'audit'],
+  'dictionary.update': ['dictionaries', 'audit'],
 };

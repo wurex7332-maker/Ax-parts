@@ -1,81 +1,102 @@
 import { create } from 'zustand';
+import type { AppUser, Role } from '../domain/types';
 
-export type Role = 'warehouse' | 'supervisor' | 'buyer' | 'operator';
+export type { Role };
 
 export interface RoleMeta {
   value: Role;
   label: string;
-  /** 写入请求头 X-Actor 的标识（后端无鉴权，仅用于记录操作人） */
-  actor: string;
   desc: string;
 }
 
 export const ROLES: RoleMeta[] = [
-  { value: 'warehouse', label: '库管员', actor: 'warehouse', desc: '档案、库存、预警、看板' },
-  { value: 'supervisor', label: '车间主管', actor: 'supervisor', desc: '审批采购申请（双端）' },
-  { value: 'buyer', label: '采购员', actor: 'purchaser', desc: '申请、订单、到货' },
-  { value: 'operator', label: '领用人员', actor: 'operator', desc: '扫码领用、查询、消息' },
+  { value: 'warehouse', label: '库管员', desc: '档案、库存、预警、看板' },
+  { value: 'supervisor', label: '车间主管', desc: '审批、用户与审计、数据字典' },
+  { value: 'buyer', label: '采购员', desc: '申请、订单、到货' },
+  { value: 'operator', label: '领用人员', desc: '扫码领用、查询、消息' },
 ];
 
-const SESSION_KEY = 'axparts.session';
+export function roleLabelOf(role: Role | null | undefined): string {
+  if (!role) return '未登录';
+  return ROLES.find((r) => r.value === role)?.label ?? role;
+}
 
-interface PersistedSession {
-  role: Role;
+const STORAGE_KEY = 'axparts.auth.v1';
+
+interface PersistedAuth {
+  token: string;
+  user: AppUser;
+}
+
+interface SessionState {
+  token: string | null;
+  user: AppUser | null;
+  /** 领用人默认值：扫码/出库时作为 recipient */
   recipientName: string;
-}
-
-function readSession(): PersistedSession {
-  const fallback: PersistedSession = { role: 'warehouse', recipientName: '操作员' };
-  try {
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<PersistedSession>;
-    const role = ROLES.some((r) => r.value === parsed.role) ? (parsed.role as Role) : fallback.role;
-    return { role, recipientName: parsed.recipientName || fallback.recipientName };
-  } catch {
-    return fallback;
-  }
-}
-
-interface SessionState extends PersistedSession {
-  setRole: (role: Role) => void;
+  setAuth: (token: string, user: AppUser) => void;
+  clear: () => void;
   setRecipientName: (name: string) => void;
   actor: () => string;
   roleLabel: () => string;
+  isAuthenticated: () => boolean;
 }
 
-function persist(state: PersistedSession) {
+function readPersisted(): PersistedAuth | null {
   try {
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedAuth>;
+    if (!parsed?.token || !parsed?.user?.username) return null;
+    return { token: parsed.token, user: parsed.user as AppUser };
   } catch {
-    // 忽略：会话不可持久化不影响使用
-  }
-  if (typeof document !== 'undefined') {
-    document.documentElement.dataset.role = state.role;
+    return null;
   }
 }
 
-const initial = readSession();
-if (typeof document !== 'undefined') document.documentElement.dataset.role = initial.role;
+const persisted = readPersisted();
 
 export const useSession = create<SessionState>((set, get) => ({
-  ...initial,
-  setRole: (role) => {
-    set({ role });
-    persist({ role, recipientName: get().recipientName });
+  token: persisted?.token ?? null,
+  user: persisted?.user ?? null,
+  recipientName: persisted?.user?.displayName ?? '操作员',
+
+  setAuth: (token, user) => {
+    set({ token, user, recipientName: user.displayName || '操作员' });
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
+    } catch {
+      // 存储不可用不影响本次会话
+    }
   },
-  setRecipientName: (recipientName) => {
-    set({ recipientName });
-    persist({ role: get().role, recipientName });
+
+  clear: () => {
+    set({ token: null, user: null });
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // 忽略
+    }
   },
-  actor: () => ROLES.find((r) => r.value === get().role)?.actor ?? 'system',
-  roleLabel: () => ROLES.find((r) => r.value === get().role)?.label ?? '未知角色',
+
+  setRecipientName: (recipientName) => set({ recipientName }),
+
+  actor: () => get().user?.username ?? 'system',
+  roleLabel: () => roleLabelOf(get().user?.role),
+  isAuthenticated: () => Boolean(get().token && get().user),
 }));
 
 export function currentActor(): string {
   return useSession.getState().actor();
 }
 
-export function currentRole(): Role {
-  return useSession.getState().role;
+export function currentToken(): string | null {
+  return useSession.getState().token;
+}
+
+export function currentRole(): Role | null {
+  return useSession.getState().user?.role ?? null;
+}
+
+export function currentUser(): AppUser | null {
+  return useSession.getState().user;
 }

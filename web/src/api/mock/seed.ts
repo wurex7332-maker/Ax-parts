@@ -1,12 +1,13 @@
 import type {
   AppNotification,
+  DictionaryItem,
   Material,
   Movement,
   PurchaseOrder,
   PurchaseRequest,
 } from '../../domain/types';
 import { suggestedQtyOf } from '../../domain/health';
-import type { MockDb, StockCell } from './db';
+import type { MockDb, MockUser, StockCell } from './db';
 
 /** 固定基准时间，保证种子与测试确定性 */
 const T0 = '2026-11-18T09:00:00+08:00';
@@ -104,6 +105,25 @@ const SEED_MATERIALS: SeedMaterial[] = [
     supplier: '网络集成商',
     qty: 2,
   },
+];
+
+const SEED_USERS: { username: string; displayName: string; role: MockUser['role'] }[] = [
+  { username: 'warehouse', displayName: '库管员', role: 'warehouse' },
+  { username: 'supervisor', displayName: '车间主管', role: 'supervisor' },
+  { username: 'purchaser', displayName: '采购员', role: 'buyer' },
+  { username: 'operator', displayName: '领用人员', role: 'operator' },
+];
+
+const SEED_DICTIONARIES: { type: 'CATEGORY' | 'UNIT'; value: string }[] = [
+  { type: 'CATEGORY', value: '计算机设备' },
+  { type: 'CATEGORY', value: '计算机配件' },
+  { type: 'CATEGORY', value: '打印设备' },
+  { type: 'CATEGORY', value: '耗材' },
+  { type: 'CATEGORY', value: '网络设备' },
+  { type: 'UNIT', value: '台' },
+  { type: 'UNIT', value: '个' },
+  { type: 'UNIT', value: '盒' },
+  { type: 'UNIT', value: '箱' },
 ];
 
 export function createSeedDb(): MockDb {
@@ -259,9 +279,35 @@ export function createSeedDb(): MockDb {
     },
   ];
 
+  const users: MockUser[] = SEED_USERS.map((user, index) => ({
+    id: index + 1,
+    username: user.username,
+    passwordHash: 'mock:axparts123',
+    displayName: user.displayName,
+    role: user.role,
+    status: 'ENABLED',
+    createdAt: T0,
+    updatedAt: T0,
+    lastLoginAt: '',
+  }));
+
+  const dictionaries: DictionaryItem[] = SEED_DICTIONARIES.map((item, index) => ({
+    id: index + 1,
+    type: item.type,
+    value: item.value,
+    label: item.value,
+    sortOrder: index + 1,
+    enabled: true,
+    createdAt: T0,
+    updatedAt: T0,
+  }));
+
   return {
     schemaVersion: 1,
     revision: 1,
+    users,
+    auditLogs: [],
+    dictionaries,
     materials,
     cells,
     movements,
@@ -269,7 +315,14 @@ export function createSeedDb(): MockDb {
     orders,
     notifications,
     idempotency: {},
-    seq: { movement: movements.length, order: orders.length, notification: notifications.length, request: requests.length },
+    seq: {
+      movement: movements.length,
+      order: orders.length,
+      notification: notifications.length,
+      request: requests.length,
+      user: users.length,
+      audit: 0,
+    },
     createdAt: T0,
   };
 }

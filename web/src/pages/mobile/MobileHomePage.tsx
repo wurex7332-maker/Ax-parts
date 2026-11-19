@@ -9,7 +9,7 @@ import { useSession } from '../../state/session';
 
 export function MobileHomePage() {
   useDocumentTitle('辅料领用');
-  const role = useSession((state) => state.role);
+  const role = useSession((state) => state.user?.role ?? null);
   const actor = useSession((state) => state.actor());
 
   const dashboard = useQuery('dashboard', () => api.dashboard(), { tags: ['dashboard'] });

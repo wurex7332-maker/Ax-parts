@@ -1,5 +1,5 @@
 import { ApiError } from '../errors';
-import { currentActor } from '../../state/session';
+import { currentToken, useSession } from '../../state/session';
 import type { Query } from './endpoints';
 
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -22,7 +22,7 @@ function buildUrl(path: string, query?: Query): string {
 }
 
 interface RequestInitLike {
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH';
   path: string;
   query?: Query;
   body?: unknown;
@@ -41,9 +41,10 @@ export async function request<T>(init: RequestInitLike): Promise<T> {
   const timeout = setTimeout(() => controller.abort(), init.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'X-Actor': currentActor(),
     ...(init.headers ?? {}),
   };
+  const token = currentToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   if (init.body !== undefined) headers['Content-Type'] = 'application/json';
 
   let response: Response;
@@ -58,6 +59,14 @@ export async function request<T>(init: RequestInitLike): Promise<T> {
     throw new ApiError('NETWORK_ERROR', undefined, error);
   } finally {
     clearTimeout(timeout);
+  }
+
+  if (response.status === 401 && !init.path.includes('/auth/login')) {
+    // 令牌失效：清空会话并回到登录页，避免后续请求持续 401
+    useSession.getState().clear();
+    if (!window.location.hash.startsWith('#/login')) {
+      window.location.hash = '#/login';
+    }
   }
 
   if (!response.ok) {

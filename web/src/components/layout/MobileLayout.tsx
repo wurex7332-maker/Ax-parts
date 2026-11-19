@@ -3,7 +3,7 @@ import { api } from '../../api';
 import { useQuery } from '../../state/useQuery';
 import { useSession } from '../../state/session';
 import { PATHS } from '../../routes/paths';
-import { RoleSwitch } from './RoleSwitch';
+import { UserMenu } from './UserMenu';
 
 const TITLES: Record<string, string> = {
   [PATHS.mobileRoot]: '辅料领用',
@@ -35,10 +35,10 @@ function useUnreadCount() {
 }
 
 export function MobileLayout() {
-  const role = useSession((state) => state.role);
+  const role = useSession((state) => state.user?.role ?? null);
   const location = useLocation();
   const unread = useUnreadCount();
-  const nav = MOBILE_NAV.filter((item) => (item.roles as readonly string[]).includes(role));
+  const nav = MOBILE_NAV.filter((item) => (item.roles as readonly string[]).includes(role ?? ''));
 
   const title = Object.entries(TITLES).find(([path]) => location.pathname.startsWith(path))?.[1] ?? '辅料领用';
 
@@ -54,7 +54,7 @@ export function MobileLayout() {
       <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <span className="text-sm font-semibold text-ink-900">{title}</span>
-          <RoleSwitch compact />
+          <UserMenu compact />
         </div>
       </header>
 

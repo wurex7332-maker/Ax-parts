@@ -3,8 +3,9 @@ import { api, resetDemoData } from '../../api';
 import { config } from '../../env';
 import { useQuery } from '../../state/useQuery';
 import { useSession } from '../../state/session';
+import type { Role } from '../../domain/types';
 import { PATHS } from '../../routes/paths';
-import { RoleSwitch } from './RoleSwitch';
+import { UserMenu } from './UserMenu';
 import { toastInfo } from '../../state/toast';
 import { invalidateAll } from '../../state/query-cache';
 
@@ -12,6 +13,8 @@ interface NavItem {
   to: string;
   label: string;
   end?: boolean;
+  /** 不填表示所有登录角色可见 */
+  roles?: Role[];
 }
 
 interface NavGroup {
@@ -44,6 +47,14 @@ export const ADMIN_NAV: NavGroup[] = [
   },
   { title: '分析', items: [{ to: PATHS.reports('movements'), label: '报表中心' }] },
   { title: '消息', items: [{ to: PATHS.notifications, label: '站内消息' }] },
+  {
+    title: '后台管理',
+    items: [
+      { to: PATHS.users, label: '用户管理', roles: ['supervisor'] },
+      { to: PATHS.audit, label: '审计日志', roles: ['supervisor'] },
+      { to: PATHS.dictionaries, label: '数据字典', roles: ['supervisor'] },
+    ],
+  },
 ];
 
 function useUnreadCount() {
@@ -58,6 +69,11 @@ function useUnreadCount() {
 
 export function AdminLayout() {
   const unread = useUnreadCount();
+  const role = useSession((state) => state.user?.role ?? null);
+  const nav = ADMIN_NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.roles || (role && item.roles.includes(role))),
+  })).filter((group) => group.items.length > 0);
 
   const onReset = () => {
     resetDemoData();
@@ -80,7 +96,7 @@ export function AdminLayout() {
             <span className="text-sm font-semibold text-ink-900">车间辅料管理</span>
           </div>
           <nav aria-label="后台导航" className="flex flex-col gap-4 px-2 py-3">
-            {ADMIN_NAV.map((group) => (
+            {nav.map((group) => (
               <div key={group.title}>
                 <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
                   {group.title}
@@ -131,13 +147,13 @@ export function AdminLayout() {
                   联调模式
                 </span>
               )}
-              <RoleSwitch />
+              <UserMenu />
             </div>
           </header>
 
           <nav aria-label="后台导航（移动折叠）" className="border-b border-line bg-white px-2 py-2 md:hidden">
             <ul className="flex gap-1 overflow-x-auto">
-              {ADMIN_NAV.flatMap((g) => g.items).map((item) => (
+              {nav.flatMap((g) => g.items).map((item) => (
                 <li key={item.to}>
                   <NavLink
                     to={item.to}

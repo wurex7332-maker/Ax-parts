@@ -27,13 +27,18 @@ import { ScanOutboundPage } from '../pages/mobile/ScanOutboundPage';
 import { EmptyState } from '../components/ui/Feedback';
 import { Link } from 'react-router-dom';
 import { useSession } from '../state/session';
-import { RequireRole } from './guards';
+import { RequireAuth, RequireRole } from './guards';
+import { LoginPage } from '../pages/LoginPage';
+import { UserListPage } from '../pages/admin/users/UserListPage';
+import { AuditLogPage } from '../pages/admin/audit/AuditLogPage';
+import { DictionaryPage } from '../pages/admin/dictionaries/DictionaryPage';
 
 const ADMIN_ROLES = ['warehouse', 'supervisor', 'buyer'] as const;
 
 function IndexRedirect() {
-  const role = useSession((state) => state.role);
-  return <Navigate to={role === 'operator' ? '/m' : '/admin/dashboard'} replace />;
+  const user = useSession((state) => state.user);
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={user.role === 'operator' ? '/m' : '/admin/dashboard'} replace />;
 }
 
 function NotFound({ mobile }: { mobile?: boolean }) {
@@ -67,13 +72,16 @@ export function AppRoutes() {
       <FocusOnRouteChange />
       <Routes>
         <Route path="/" element={<IndexRedirect />} />
+        <Route path="/login" element={<LoginPage />} />
 
         <Route
           path="/admin"
           element={
-            <RequireRole roles={[...ADMIN_ROLES]}>
-              <AdminLayout />
-            </RequireRole>
+            <RequireAuth>
+              <RequireRole roles={[...ADMIN_ROLES]}>
+                <AdminLayout />
+              </RequireRole>
+            </RequireAuth>
           }
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -95,15 +103,41 @@ export function AppRoutes() {
           <Route path="reports" element={<Navigate to="/admin/reports/movements" replace />} />
           <Route path="reports/:tab" element={<ReportsPage />} />
           <Route path="notifications" element={<NotificationPage />} />
+          <Route
+            path="users"
+            element={
+              <RequireRole roles={['supervisor']}>
+                <UserListPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="audit"
+            element={
+              <RequireRole roles={['supervisor']}>
+                <AuditLogPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="dictionaries"
+            element={
+              <RequireRole roles={['supervisor']}>
+                <DictionaryPage />
+              </RequireRole>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Route>
 
         <Route
           path="/m"
           element={
-            <RequireRole roles={['operator', 'supervisor']}>
-              <MobileLayout />
-            </RequireRole>
+            <RequireAuth>
+              <RequireRole roles={['operator', 'supervisor']}>
+                <MobileLayout />
+              </RequireRole>
+            </RequireAuth>
           }
         >
           <Route index element={<MobileHomePage />} />
