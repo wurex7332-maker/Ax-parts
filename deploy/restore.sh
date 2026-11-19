@@ -35,6 +35,7 @@ echo "[4/4] 启动后端…"
 docker compose start backend
 
 sleep 3
-echo "验证健康检查："
-curl -s -o /dev/null -w "  /health -> %{http_code}\n" http://127.0.0.1/health || true
+echo "验证健康检查（Caddy 会把 http 重定向到 https，故直接查 https）："
+curl -sk -o /dev/null -w "  https://localhost/health -> %{http_code}\n" https://localhost/health \
+  || echo "  健康检查未通过，请查看 docker compose logs backend"
 echo "完成。用浏览器登录后核对数据是否符合预期。"
