@@ -8,6 +8,8 @@ import { Button } from '../../../components/ui/Button';
 import { Field, Select, TextInput } from '../../../components/ui/Field';
 import { ErrorState, Skeleton } from '../../../components/ui/Feedback';
 import { useDictionaries } from '../../../hooks/useDictionaries';
+import { SuggestInput } from '../../../components/ui/SuggestInput';
+import { useBrandOptions, useLocationOptions, useSupplierOptions } from '../../../hooks/useSuggestions';
 import { centsToYuan, yuanToCents } from '../../../domain/format';
 import type { UpdateMaterialInput } from '../../../api/port';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -55,6 +57,9 @@ export function MaterialFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const categories = useDictionaries('CATEGORY');
   const units = useDictionaries('UNIT');
+  const locations = useLocationOptions();
+  const suppliers = useSupplierOptions();
+  const brands = useBrandOptions();
 
   // 字典异步到达后补默认值
   useEffect(() => {
@@ -241,16 +246,24 @@ export function MaterialFormPage() {
             <TextInput id="m-specModel" value={form.specModel} onChange={(event) => set('specModel', event.target.value)} />
           </Field>
 
-          <Field label="品牌" htmlFor="m-brand">
-            <TextInput id="m-brand" value={form.brand} onChange={(event) => set('brand', event.target.value)} />
+          <Field label="品牌" htmlFor="m-brand" hint="可从已有品牌中选，也可直接输入新品牌">
+            <SuggestInput
+              id="m-brand"
+              value={form.brand}
+              onChange={(next) => set('brand', next)}
+              options={brands}
+              placeholder="例如 Lenovo"
+            />
           </Field>
 
-          <Field label="存放位置" htmlFor="m-location" required error={errors.location} hint="库位编码，例如 A-03">
-            <TextInput
+          <Field label="存放位置" htmlFor="m-location" required error={errors.location} hint="库位编码，可从已有库位选，也可输入新库位">
+            <SuggestInput
               id="m-location"
               value={form.location}
-              onChange={(event) => set('location', event.target.value)}
+              onChange={(next) => set('location', next)}
+              options={locations}
               invalid={Boolean(errors.location)}
+              aria-describedby={errors.location ? 'm-location-error' : undefined}
               placeholder="A-03"
             />
           </Field>
@@ -275,8 +288,14 @@ export function MaterialFormPage() {
             />
           </Field>
 
-          <Field label="供应商" htmlFor="m-supplier">
-            <TextInput id="m-supplier" value={form.supplier} onChange={(event) => set('supplier', event.target.value)} />
+          <Field label="供应商" htmlFor="m-supplier" hint="可从已有供应商中选">
+            <SuggestInput
+              id="m-supplier"
+              value={form.supplier}
+              onChange={(next) => set('supplier', next)}
+              options={suppliers}
+              placeholder="例如 电脑城"
+            />
           </Field>
         </div>
 

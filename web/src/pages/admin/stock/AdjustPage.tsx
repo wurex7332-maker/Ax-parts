@@ -8,6 +8,8 @@ import { PageHeader } from '../../../components/layout/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/Dialog';
 import { TextInput } from '../../../components/ui/Field';
+import { SuggestInput } from '../../../components/ui/SuggestInput';
+import { useLocationOptions } from '../../../hooks/useSuggestions';
 import { ADJUST_TYPES } from '../../../domain/enums';
 import type { Material } from '../../../domain/types';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -28,6 +30,7 @@ export function AdjustPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const locationOptions = useLocationOptions();
 
   const adjust = useMutation(
     'stock.adjust',
@@ -137,12 +140,14 @@ export function AdjustPage() {
             <label htmlFor="loss-location" className="mb-1 block text-xs text-ink-500">
               库位 <span className="text-stockout-fg">*</span>
             </label>
-            <TextInput
+            <SuggestInput
               id="loss-location"
               value={location}
-              onChange={(event) => setLocation(event.target.value)}
+              onChange={setLocation}
+              options={locationOptions}
               invalid={Boolean(errors.location)}
               aria-describedby={errors.location ? 'loss-location-error' : undefined}
+              placeholder="例如 A-01"
             />
             {errors.location ? (
               <p id="loss-location-error" role="alert" className="mt-1 text-xs text-stockout-fg">
@@ -156,11 +161,13 @@ export function AdjustPage() {
               <label htmlFor="tr-source" className="mb-1 block text-xs text-ink-500">
                 源库位 <span className="text-stockout-fg">*</span>
               </label>
-              <TextInput
+              <SuggestInput
                 id="tr-source"
                 value={sourceLocation}
-                onChange={(event) => setSourceLocation(event.target.value)}
+                onChange={setSourceLocation}
+                options={locationOptions}
                 invalid={Boolean(errors.sourceLocation)}
+                placeholder="例如 A-03"
               />
               {errors.sourceLocation ? (
                 <p role="alert" className="mt-1 text-xs text-stockout-fg">
@@ -172,11 +179,13 @@ export function AdjustPage() {
               <label htmlFor="tr-target" className="mb-1 block text-xs text-ink-500">
                 目标库位 <span className="text-stockout-fg">*</span>
               </label>
-              <TextInput
+              <SuggestInput
                 id="tr-target"
                 value={targetLocation}
-                onChange={(event) => setTargetLocation(event.target.value)}
+                onChange={setTargetLocation}
+                options={locationOptions.filter((item) => item !== sourceLocation)}
                 invalid={Boolean(errors.targetLocation)}
+                placeholder="例如 A-05"
               />
               {errors.targetLocation ? (
                 <p role="alert" className="mt-1 text-xs text-stockout-fg">

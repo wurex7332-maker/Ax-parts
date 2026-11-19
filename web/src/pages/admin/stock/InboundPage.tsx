@@ -9,6 +9,8 @@ import { PageHeader } from '../../../components/layout/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Feedback';
 import { TextInput } from '../../../components/ui/Field';
+import { SuggestInput } from '../../../components/ui/SuggestInput';
+import { useLocationOptions } from '../../../hooks/useSuggestions';
 import { HEALTH_LABEL, INBOUND_SOURCES } from '../../../domain/enums';
 import type { Material } from '../../../domain/types';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -29,6 +31,7 @@ export function InboundPage() {
   const [location, setLocation] = useState('');
   const [relatedDocNo, setRelatedDocNo] = useState('');
   const [formKey, setFormKey] = useState(0);
+  const locationOptions = useLocationOptions();
   const [fieldError, setFieldError] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ currentStock: number; health: 'NORMAL' | 'LOW' | 'STOCKOUT' } | null>(null);
 
@@ -132,11 +135,12 @@ export function InboundPage() {
           <label htmlFor="inbound-location" className="mb-1 block text-xs text-ink-500">
             入库库位（默认取档案库位）
           </label>
-          <TextInput
+          <SuggestInput
             id="inbound-location"
             value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            placeholder="A-01"
+            onChange={setLocation}
+            options={locationOptions}
+            placeholder="A-01（可从已有库位选）"
           />
         </div>
 
