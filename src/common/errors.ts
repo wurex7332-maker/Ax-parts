@@ -53,6 +53,24 @@ export const Errors = {
     new AppError('DUPLICATE_ORDER', `申请已有采购订单: ${requestNo}`, HttpStatus.CONFLICT),
   idempotencyConflict: (key: string) =>
     new AppError('IDEMPOTENCY_CONFLICT', `幂等键已被其他请求使用: ${key}`, HttpStatus.CONFLICT),
+  unauthorized: (message = '未登录或登录已过期，请重新登录') =>
+    new AppError('UNAUTHORIZED', message, HttpStatus.UNAUTHORIZED),
+  invalidCredentials: () =>
+    new AppError('INVALID_CREDENTIALS', '用户名或密码错误', HttpStatus.UNAUTHORIZED),
+  forbidden: (scope = '') =>
+    new AppError('FORBIDDEN', scope ? `当前角色无权执行该操作（需要 ${scope}）` : '当前角色无权执行该操作', HttpStatus.FORBIDDEN),
+  userNotFound: (username: string) =>
+    new AppError('USER_NOT_FOUND', `用户不存在: ${username}`, HttpStatus.NOT_FOUND),
+  duplicateUser: (username: string) =>
+    new AppError('DUPLICATE_USER', `用户名已存在: ${username}`, HttpStatus.CONFLICT),
+  userDisabled: (username: string) =>
+    new AppError('USER_DISABLED', `用户已停用: ${username}`, HttpStatus.CONFLICT),
+  dictionaryNotFound: (id: number) =>
+    new AppError('DICTIONARY_NOT_FOUND', `字典项不存在: ${id}`, HttpStatus.NOT_FOUND),
+  duplicateDictionary: (type: string, value: string) =>
+    new AppError('DUPLICATE_DICTIONARY', `字典项已存在: ${type}/${value}`, HttpStatus.CONFLICT),
+  dictionaryInUse: (value: string) =>
+    new AppError('DICTIONARY_IN_USE', `该字典项仍被物料使用，不能停用或删除: ${value}`, HttpStatus.CONFLICT),
 };
 
 @Catch()

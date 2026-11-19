@@ -22,7 +22,8 @@ export class CreateMaterialDto {
   @IsNotEmpty()
   name: string;
 
-  @IsIn(CATEGORIES)
+  @IsString()
+  @IsNotEmpty()
   category: string;
 
   @IsString()
@@ -33,7 +34,8 @@ export class CreateMaterialDto {
   @IsOptional()
   brand = '';
 
-  @IsIn(UNITS)
+  @IsString()
+  @IsNotEmpty()
   unit: string;
 
   @IsString()
@@ -64,7 +66,7 @@ export class UpdateMaterialDto {
   @IsOptional()
   name?: string;
 
-  @IsIn(CATEGORIES)
+  @IsString()
   @IsOptional()
   category?: string;
 
@@ -76,7 +78,7 @@ export class UpdateMaterialDto {
   @IsOptional()
   brand?: string;
 
-  @IsIn(UNITS)
+  @IsString()
   @IsOptional()
   unit?: string;
 
@@ -106,7 +108,7 @@ export class UpdateMaterialDto {
 
 export class MaterialQueryDto extends PaginationQuery {
   @IsOptional()
-  @IsIn(CATEGORIES)
+  @IsString()
   category?: string;
 
   @IsOptional()

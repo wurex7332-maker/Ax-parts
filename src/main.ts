@@ -14,6 +14,12 @@ export async function createApp() {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+  // 前端可能以独立静态站点形式部署，需要跨域访问 API；仅测试项目使用，生产应改为白名单
+  app.enableCors({
+    origin: true,
+    credentials: false,
+    exposedHeaders: ['Content-Disposition'],
+  });
   return app;
 }
 

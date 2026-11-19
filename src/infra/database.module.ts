@@ -4,6 +4,8 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { SCHEMA_SQL } from './schema';
 import { seedDatabase } from './seed';
+import { seedAccessData } from './seed-access';
+import { migrateMaterialsDictionary } from './migrations';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
@@ -20,7 +22,11 @@ export class DatabaseService implements OnModuleDestroy {
     this.db = new Database(this.filePath);
     this.db.pragma('foreign_keys = ON');
     this.db.exec(SCHEMA_SQL);
-    if (process.env.SKIP_SEED !== '1') seedDatabase(this.db);
+    migrateMaterialsDictionary(this.db);
+    if (process.env.SKIP_SEED !== '1') {
+      seedDatabase(this.db);
+      seedAccessData(this.db);
+    }
   }
 
   onModuleDestroy() {
