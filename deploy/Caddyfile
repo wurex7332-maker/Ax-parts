@@ -1,0 +1,27 @@
+# Caddy：自动申请并续期 HTTPS 证书（域名已解析到本机时无需手工配置证书）
+# DOMAIN 来自 .env；本地无域名时可用 localhost 验证
+
+{$DOMAIN:localhost} {
+	encode gzip
+
+	# 接口与健康检查转发到后端容器
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+	handle /health {
+		reverse_proxy backend:3000
+	}
+
+	# 其余全部是前端静态资源；HashRouter 下只需回退到 index.html
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	# 练习阶段保留访问日志，便于观察请求；真实上线前注意脱敏
+	log {
+		output stdout
+		format console
+	}
+}
