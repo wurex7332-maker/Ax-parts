@@ -22,7 +22,7 @@ export interface RequestActionsProps {
  * 到货入库以订单为主体，入口在「采购订单」页，不在此处。
  */
 export function RequestActions({ request, layout = 'desktop' }: RequestActionsProps) {
-  const role = useSession((state) => state.role);
+  const role = useSession((state) => state.user?.role ?? null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [reason, setReason] = useState('');

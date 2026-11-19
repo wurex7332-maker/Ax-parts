@@ -1,4 +1,5 @@
 export const PATHS = {
+  login: '/login',
   adminRoot: '/admin',
   dashboard: '/admin/dashboard',
   materials: '/admin/materials',
@@ -23,6 +24,9 @@ export const PATHS = {
   orders: '/admin/purchase/orders',
   reports: (tab: string) => `/admin/reports/${tab}`,
   notifications: '/admin/notifications',
+  users: '/admin/users',
+  audit: '/admin/audit',
+  dictionaries: '/admin/dictionaries',
   mobileRoot: '/m',
   scan: '/m/scan',
   mobileSearch: '/m/search',

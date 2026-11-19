@@ -1,5 +1,7 @@
 import type {
   AppNotification,
+  AuditLog,
+  DictionaryItem,
   Material,
   Movement,
   PurchaseOrder,
@@ -19,9 +21,25 @@ export interface IdempotencyRecord {
   result: unknown;
 }
 
+/** mock 用户：密码以 mock: 前缀存储，仅用于演示，不做真实加密 */
+export interface MockUser {
+  id: number;
+  username: string;
+  passwordHash: string;
+  displayName: string;
+  role: 'warehouse' | 'supervisor' | 'buyer' | 'operator';
+  status: 'ENABLED' | 'DISABLED';
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string;
+}
+
 export interface MockDb {
   schemaVersion: 1;
   revision: number;
+  users: MockUser[];
+  auditLogs: AuditLog[];
+  dictionaries: DictionaryItem[];
   materials: Material[];
   cells: StockCell[];
   movements: Movement[];
@@ -29,7 +47,14 @@ export interface MockDb {
   orders: PurchaseOrder[];
   notifications: AppNotification[];
   idempotency: Record<string, IdempotencyRecord>;
-  seq: { movement: number; order: number; notification: number; request: number };
+  seq: {
+    movement: number;
+    order: number;
+    notification: number;
+    request: number;
+    user: number;
+    audit: number;
+  };
   createdAt: string;
 }
 

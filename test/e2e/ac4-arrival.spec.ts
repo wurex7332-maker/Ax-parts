@@ -34,7 +34,7 @@ describe('AC-4 采购到货入库闭环', () => {
     expect(arrived.body.movement).toMatchObject({
       type: 'IN_PURCHASE',
       quantitySigned: 20,
-      operator: 'purchaser',
+      operator: 'supervisor', // 身份取自令牌，X-Actor 不再生效
       relatedDocNo: 'PO-SEED-0001',
     });
     expect(arrived.body.movement.occurredAt).toBeDefined();

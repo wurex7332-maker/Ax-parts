@@ -216,3 +216,69 @@ export interface ArriveResult {
   previousHealth: Health;
   health: Health;
 }
+
+/** ===== 登录与后台管理 ===== */
+
+export type Role = 'warehouse' | 'supervisor' | 'buyer' | 'operator';
+
+export interface AppUser {
+  id?: number;
+  username: string;
+  displayName: string;
+  role: Role;
+  status?: 'ENABLED' | 'DISABLED';
+  createdAt?: string;
+  updatedAt?: string;
+  lastLoginAt?: string;
+}
+
+export interface AuthResult {
+  token: string;
+  user: AppUser;
+  expiresIn?: number;
+}
+
+export type AuditAction =
+  | 'AUTH_LOGIN'
+  | 'MATERIAL_CREATE'
+  | 'MATERIAL_UPDATE'
+  | 'MATERIAL_DISABLE'
+  | 'STOCK_INBOUND'
+  | 'STOCK_OUTBOUND'
+  | 'STOCK_COUNT'
+  | 'STOCK_ADJUST'
+  | 'PURCHASE_CREATE'
+  | 'PURCHASE_APPROVE'
+  | 'PURCHASE_REJECT'
+  | 'PURCHASE_RESUBMIT'
+  | 'PURCHASE_ORDER_CREATE'
+  | 'PURCHASE_ARRIVE'
+  | 'USER_CREATE'
+  | 'USER_UPDATE'
+  | 'USER_RESET_PASSWORD'
+  | 'DICTIONARY_CREATE'
+  | 'DICTIONARY_UPDATE';
+
+export interface AuditLog {
+  id: number;
+  actor: string;
+  actorRole: string;
+  action: AuditAction | string;
+  resource: string;
+  resourceId: string;
+  detail: string;
+  createdAt: string;
+}
+
+export type DictionaryType = 'CATEGORY' | 'UNIT';
+
+export interface DictionaryItem {
+  id: number;
+  type: DictionaryType;
+  value: string;
+  label: string;
+  sortOrder: number;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}

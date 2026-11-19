@@ -1,9 +1,11 @@
-import { CATEGORIES, UNITS, requestStatusLabel } from '../../domain/enums';
+import { requestStatusLabel } from '../../domain/enums';
 import { healthOf, suggestedQtyOf } from '../../domain/health';
 import type {
   AdjustResult,
   AlertItem,
   AppNotification,
+  AuthResult,
+  DictionaryItem,
   ArriveResult,
   ConsumptionRankItem,
   CountResult,
@@ -23,12 +25,20 @@ import type {
   RequestStatus,
   StockRow,
 } from '../../domain/types';
-import { currentActor } from '../../state/session';
+import { currentActor, useSession } from '../../state/session';
 import { ApiError } from '../errors';
 import type {
   AdjustInput,
   AlertQuery,
   ApiPort,
+  AuditQuery,
+  CreateDictionaryInput,
+  CreateUserInput,
+  DictionaryQuery,
+  LoginInput,
+  UpdateDictionaryInput,
+  UpdateUserInput,
+  UserQuery,
   CountInput,
   CreateMaterialInput,
   CreateRequestInput,
@@ -103,6 +113,35 @@ const ADJUST_FIELDS = [
   'batch',
 ] as const;
 const REQUEST_FIELDS = ['sku', 'quantity', 'expectedDate', 'reason', 'source', 'applicant'] as const;
+
+/** mock 审计：只追加，不提供修改入口 */
+function pushAudit(
+  db: MockDb,
+  action: string,
+  resource: string,
+  resourceId: string,
+  detail?: Record<string, unknown>,
+): void {
+  db.seq.audit += 1;
+  const actor = currentActor();
+  db.auditLogs.unshift({
+    id: db.seq.audit,
+    actor,
+    actorRole: useSession.getState().user?.role ?? '',
+    action,
+    resource,
+    resourceId,
+    detail: detail ? JSON.stringify(detail) : '',
+    createdAt: nowIso(),
+  });
+}
+
+function assertDictionary(db: MockDb, type: 'CATEGORY' | 'UNIT', value: string, label: string): void {
+  const found = db.dictionaries.find((d) => d.type === type && d.value === value && d.enabled);
+  if (!found) {
+    throw new ApiError('VALIDATION_ERROR', `${label}「${value}」不在启用的数据字典中，请先在数据字典中维护`);
+  }
+}
 
 function getMaterial(db: MockDb, sku: string): Material {
   const material = db.materials.find((m) => m.sku === sku);
@@ -261,6 +300,254 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
   return {
     mode: 'mock',
 
+    auth: {
+      async login(input: LoginInput): Promise<AuthResult> {
+        const db = loadDb();
+        const user = db.users.find((u) => u.username === input.username.trim());
+        if (!user || user.passwordHash !== `mock:${input.password}`) {
+          throw new ApiError('INVALID_CREDENTIALS', '用户名或密码错误');
+        }
+        if (user.status !== 'ENABLED') {
+          throw new ApiError('USER_DISABLED', `用户已停用: ${user.username}`);
+        }
+        commit((d) => {
+          const record = d.users.find((u) => u.username === user.username);
+          if (record) record.lastLoginAt = nowIso();
+        });
+        return {
+          token: `mock-token-${user.username}`,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+            status: user.status,
+            lastLoginAt: user.lastLoginAt,
+          },
+        };
+      },
+
+      async me() {
+        const db = loadDb();
+        const username = useSession.getState().user?.username;
+        const user = db.users.find((u) => u.username === username);
+        if (!user) throw new ApiError('UNAUTHORIZED', '未登录或登录已过期，请重新登录');
+        return {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          role: user.role,
+          status: user.status,
+        };
+      },
+
+      async logout() {
+        return undefined;
+      },
+    },
+
+    users: {
+      async list(query: UserQuery) {
+        const db = loadDb();
+        const items = db.users
+          .filter((u) => (query.role ? u.role === query.role : true))
+          .filter((u) => (query.status ? u.status === query.status : true))
+          .filter((u) => matchKeyword(query.keyword, u.username, u.displayName))
+          .sort((a, b) => a.id - b.id)
+          .map((u) => ({
+            id: u.id,
+            username: u.username,
+            displayName: u.displayName,
+            role: u.role,
+            status: u.status,
+            createdAt: u.createdAt,
+            updatedAt: u.updatedAt,
+            lastLoginAt: u.lastLoginAt,
+          }));
+        return paginate(items, query);
+      },
+
+      async create(input: CreateUserInput) {
+        const username = assertNonEmpty(input.username, '用户名').trim();
+        const displayName = assertNonEmpty(input.displayName, '姓名');
+        if (typeof input.password !== 'string' || input.password.length < 6) {
+          throw new ApiError('VALIDATION_ERROR', '密码至少 6 位');
+        }
+        assertEnum(input.role, ['warehouse', 'supervisor', 'buyer', 'operator'] as const, '角色');
+
+        return commit((db) => {
+          if (db.users.some((u) => u.username === username)) {
+            throw new ApiError('DUPLICATE_USER', `用户名已存在: ${username}`);
+          }
+          db.seq.user += 1;
+          const at = nowIso();
+          const user = {
+            id: db.seq.user,
+            username,
+            passwordHash: `mock:${input.password}`,
+            displayName,
+            role: input.role,
+            status: 'ENABLED' as const,
+            createdAt: at,
+            updatedAt: at,
+            lastLoginAt: '',
+          };
+          db.users.push(user);
+          pushAudit(db, 'USER_CREATE', 'user', username, { role: user.role });
+          return {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+            status: user.status,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            lastLoginAt: user.lastLoginAt,
+          };
+        });
+      },
+
+      async update(id: number, patch: UpdateUserInput) {
+        return commit((db) => {
+          const user = db.users.find((u) => u.id === id);
+          if (!user) throw new ApiError('USER_NOT_FOUND', `用户不存在: ${id}`);
+
+          const nextRole = patch.role ?? user.role;
+          const nextStatus = patch.status ?? user.status;
+          const losingSupervisor =
+            user.role === 'supervisor' &&
+            user.status === 'ENABLED' &&
+            (nextRole !== 'supervisor' || nextStatus !== 'ENABLED');
+          if (losingSupervisor) {
+            const remaining = db.users.filter(
+              (u) => u.role === 'supervisor' && u.status === 'ENABLED' && u.id !== user.id,
+            ).length;
+            if (remaining === 0) {
+              throw new ApiError('VALIDATION_ERROR', '至少需要保留一名启用状态的车间主管');
+            }
+          }
+
+          user.role = nextRole;
+          user.status = nextStatus;
+          if (patch.displayName?.trim()) user.displayName = patch.displayName.trim();
+          user.updatedAt = nowIso();
+          pushAudit(db, 'USER_UPDATE', 'user', user.username, { role: user.role, status: user.status });
+          return {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+            status: user.status,
+          };
+        });
+      },
+
+      async resetPassword(id: number, password: string) {
+        if (typeof password !== 'string' || password.length < 6) {
+          throw new ApiError('VALIDATION_ERROR', '密码至少 6 位');
+        }
+        return commit((db) => {
+          const user = db.users.find((u) => u.id === id);
+          if (!user) throw new ApiError('USER_NOT_FOUND', `用户不存在: ${id}`);
+          user.passwordHash = `mock:${password}`;
+          user.updatedAt = nowIso();
+          pushAudit(db, 'USER_RESET_PASSWORD', 'user', user.username);
+          return { ok: true, username: user.username };
+        });
+      },
+
+      async changeOwnPassword(password: string) {
+        if (typeof password !== 'string' || password.length < 6) {
+          throw new ApiError('VALIDATION_ERROR', '密码至少 6 位');
+        }
+        const username = useSession.getState().user?.username;
+        return commit((db) => {
+          const user = db.users.find((u) => u.username === username);
+          if (!user) throw new ApiError('USER_NOT_FOUND', String(username));
+          user.passwordHash = `mock:${password}`;
+          user.updatedAt = nowIso();
+          return { ok: true };
+        });
+      },
+    },
+
+    audit: {
+      async list(query: AuditQuery) {
+        const db = loadDb();
+        const items = db.auditLogs
+          .filter((log) => (query.actor ? log.actor.includes(query.actor) : true))
+          .filter((log) => (query.action ? log.action === query.action : true))
+          .filter((log) => (query.resource ? log.resource === query.resource : true))
+          .filter((log) => withinRange(log.createdAt, query.from, query.to));
+        return paginate(items, query);
+      },
+    },
+
+    dictionaries: {
+      async list(query: DictionaryQuery) {
+        const db = loadDb();
+        const items = db.dictionaries
+          .filter((d) => (query.type ? d.type === query.type : true))
+          .filter((d) => (query.includeDisabled === '1' ? true : d.enabled))
+          .sort((a, b) => a.type.localeCompare(b.type) || a.sortOrder - b.sortOrder || a.id - b.id);
+        return paginate(items, query);
+      },
+
+      async create(input: CreateDictionaryInput) {
+        assertEnum(input.type, ['CATEGORY', 'UNIT'] as const, '类型');
+        const value = assertNonEmpty(input.value, '取值').trim();
+        return commit((db) => {
+          if (db.dictionaries.some((d) => d.type === input.type && d.value === value)) {
+            throw new ApiError('DUPLICATE_DICTIONARY', `字典项已存在: ${input.type}/${value}`);
+          }
+          const at = nowIso();
+          const item: DictionaryItem = {
+            id: db.dictionaries.length + 1,
+            type: input.type,
+            value,
+            label: (input.label || value).trim(),
+            sortOrder: input.sortOrder ?? 100,
+            enabled: true,
+            createdAt: at,
+            updatedAt: at,
+          };
+          db.dictionaries.push(item);
+          pushAudit(db, 'DICTIONARY_CREATE', 'dictionary', String(item.id), {
+            type: item.type,
+            value: item.value,
+          });
+          return item;
+        });
+      },
+
+      async update(id: number, patch: UpdateDictionaryInput) {
+        return commit((db) => {
+          const item = db.dictionaries.find((d) => d.id === id);
+          if (!item) throw new ApiError('DICTIONARY_NOT_FOUND', `字典项不存在: ${id}`);
+
+          if (patch.enabled === false && item.enabled) {
+            const used = db.materials.filter((m) =>
+              item.type === 'CATEGORY' ? m.category === item.value : m.unit === item.value,
+            ).length;
+            if (used > 0) {
+              throw new ApiError('DICTIONARY_IN_USE', `该字典项仍被物料使用，不能停用: ${item.value}`);
+            }
+          }
+
+          if (patch.label !== undefined) item.label = patch.label;
+          if (patch.sortOrder !== undefined) item.sortOrder = patch.sortOrder;
+          if (patch.enabled !== undefined) item.enabled = patch.enabled;
+          item.updatedAt = nowIso();
+          pushAudit(db, 'DICTIONARY_UPDATE', 'dictionary', String(item.id), {
+            type: item.type,
+            value: item.value,
+            enabled: item.enabled,
+          });
+          return item;
+        });
+      },
+    },
+
     async health() {
       return { ok: true };
     },
@@ -286,8 +573,8 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
         assertNoUnknownFields(input as unknown as Record<string, unknown>, MATERIAL_FIELDS);
         const sku = assertNonEmpty(input.sku, 'SKU');
         const name = assertNonEmpty(input.name, '名称');
-        const category = assertEnum(input.category, CATEGORIES, '类别');
-        const unit = assertEnum(input.unit, UNITS, '单位');
+        const category = assertNonEmpty(input.category, '类别');
+        const unit = assertNonEmpty(input.unit, '单位');
         const location = assertNonEmpty(input.location, '存放位置');
         const safetyStock = assertInt(input.safetyStock, '安全库存', 0);
         const priceCents = input.priceCents === undefined ? 0 : assertInt(input.priceCents, '单价', 0);
@@ -296,6 +583,8 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           if (db.materials.some((m) => m.sku === sku)) {
             throw new ApiError('DUPLICATE_SKU', `SKU 已存在: ${sku}`);
           }
+          assertDictionary(db, 'CATEGORY', category, '类别');
+          assertDictionary(db, 'UNIT', unit, '单位');
           const at = nowIso();
           const material: Material = {
             sku,
@@ -315,6 +604,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           };
           db.materials.push(material);
           ensureCell(db, sku, location); // 建档即建 0 库存单元，避免空窗
+          pushAudit(db, 'MATERIAL_CREATE', 'material', sku, { name: material.name, category });
           return toDetail(db, material);
         });
       },
@@ -327,8 +617,14 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
         return commit((db) => {
           const material = getMaterial(db, sku);
           if (patch.name !== undefined) material.name = assertNonEmpty(patch.name, '名称');
-          if (patch.category !== undefined) material.category = assertEnum(patch.category, CATEGORIES, '类别');
-          if (patch.unit !== undefined) material.unit = assertEnum(patch.unit, UNITS, '单位');
+          if (patch.category !== undefined) {
+            assertDictionary(db, 'CATEGORY', patch.category, '类别');
+            material.category = patch.category;
+          }
+          if (patch.unit !== undefined) {
+            assertDictionary(db, 'UNIT', patch.unit, '单位');
+            material.unit = patch.unit;
+          }
           if (patch.location !== undefined) material.location = assertNonEmpty(patch.location, '存放位置');
           if (patch.priceCents !== undefined) material.priceCents = assertInt(patch.priceCents, '单价', 0);
           if (patch.safetyStock !== undefined) material.safetyStock = assertInt(patch.safetyStock, '安全库存', 0);
@@ -337,6 +633,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           if (patch.supplier !== undefined) material.supplier = patch.supplier;
           if (patch.imageUrl !== undefined) material.imageUrl = patch.imageUrl;
           material.updatedAt = nowIso();
+          pushAudit(db, 'MATERIAL_UPDATE', 'material', sku, { fields: Object.keys(patch) });
           return toDetail(db, material);
         });
       },
@@ -346,6 +643,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           const material = getMaterial(db, sku);
           material.status = 'DISABLED';
           material.updatedAt = nowIso();
+          pushAudit(db, 'MATERIAL_DISABLE', 'material', sku);
           return toDetail(db, material);
         });
       },
@@ -408,6 +706,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
             relatedDocNo: input.relatedDocNo,
           });
           const currentStock = skuQty(db, input.sku);
+          pushAudit(db, 'STOCK_INBOUND', 'stock', input.sku, { quantity, source });
           return { movement, currentStock, health: healthOf(currentStock, material.safetyStock) };
         });
       },
@@ -464,6 +763,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
             health,
           };
           if (key) db.idempotency[key] = { fp: idempotencyFingerprint(input), result };
+          pushAudit(db, 'STOCK_OUTBOUND', 'stock', input.sku, { quantity, recipient: input.recipient });
           return result;
         });
       },
@@ -497,6 +797,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           }
 
           const currentStock = skuQty(db, input.sku);
+          pushAudit(db, 'STOCK_COUNT', 'stock', input.sku, { location, actualQty, difference });
           notifyHealthDrop(db, input.sku, previous, healthOf(currentStock, material.safetyStock));
           return { sku: input.sku, location, bookStock, actualQty, difference, action, movement, currentStock };
         });
@@ -528,6 +829,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
               batch: input.batch,
             });
             const currentStock = skuQty(db, input.sku);
+            pushAudit(db, 'STOCK_ADJUST', 'stock', input.sku, { type, quantity });
             notifyHealthDrop(db, input.sku, previous, healthOf(currentStock, material.safetyStock));
             return { type, relatedDocNo: movement.movementNo, movements: [movement], currentStock };
           }
@@ -563,6 +865,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
             relatedDocNo: docNo,
             relatedMovementNo: out.movementNo,
           });
+          pushAudit(db, 'STOCK_ADJUST', 'stock', input.sku, { type, quantity });
           return { type, relatedDocNo: docNo, movements: [out, inbound], currentStock: skuQty(db, input.sku) };
         });
       },
@@ -632,6 +935,10 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
             updatedAt: at,
           };
           db.requests.push(request);
+          pushAudit(db, 'PURCHASE_CREATE', 'purchase_request', request.requestNo, {
+            sku: request.sku,
+            quantity,
+          });
           pushNotification(db, {
             recipient: 'supervisor',
             type: 'ALERT',
@@ -647,6 +954,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
         return commit((db) => {
           const request = findRequest(db, id);
           transition(request, 'APPROVE', nowIso());
+          pushAudit(db, 'PURCHASE_APPROVE', 'purchase_request', request.requestNo);
           pushNotification(db, {
             recipient: request.applicant,
             type: 'APPROVED',
@@ -669,6 +977,9 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           }
           request.rejectReason = body.reason.trim();
           transition(request, 'REJECT', nowIso());
+          pushAudit(db, 'PURCHASE_REJECT', 'purchase_request', request.requestNo, {
+            reason: request.rejectReason,
+          });
           pushNotification(db, {
             recipient: request.applicant,
             type: 'REJECTED',
@@ -684,6 +995,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
         return commit((db) => {
           const request = findRequest(db, id);
           transition(request, 'RESUBMIT', nowIso());
+          pushAudit(db, 'PURCHASE_RESUBMIT', 'purchase_request', request.requestNo);
           return request;
         });
       },
@@ -728,6 +1040,9 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
             closedAt: null,
           };
           db.orders.push(order);
+          pushAudit(db, 'PURCHASE_ORDER_CREATE', 'purchase_order', order.orderNo, {
+            requestNo: order.requestNo,
+          });
           return order;
         });
       },
@@ -759,6 +1074,7 @@ export function createMockAdapter(): ApiPort & { reset: () => void } {
           transition(request, 'ARRIVE', nowIso());
           const currentStock = skuQty(db, order.sku);
           const health = healthOf(currentStock, material.safetyStock);
+          pushAudit(db, 'PURCHASE_ARRIVE', 'purchase_order', order.orderNo, { currentStock });
           pushNotification(db, {
             recipient: 'warehouse',
             type: 'ARRIVED',

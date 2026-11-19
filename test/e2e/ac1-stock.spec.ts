@@ -26,7 +26,8 @@ describe('AC-1 库存汇总与流水', () => {
       .send({ sku: 'TST-001', quantity: 10, source: 'PURCHASE', purpose: '采购入库' })
       .expect(201);
     expect(inbound.body.currentStock).toBe(10);
-    expect(inbound.body.movement.operator).toBe('keeper');
+    // 身份来自登录令牌；X-Actor 已失效，故意保留该请求头以验证不可伪造
+    expect(inbound.body.movement.operator).toBe('supervisor');
     expect(inbound.body.movement.occurredAt).toBeDefined();
 
     const outbound = await api(app)
@@ -43,7 +44,7 @@ describe('AC-1 库存汇总与流水', () => {
     expect(outbound.body.currentStock).toBe(7);
     expect(outbound.body.availableStock).toBe(7);
     expect(outbound.body.movement.recipient).toBe('张三');
-    expect(outbound.body.movement.operator).toBe('worker');
+    expect(outbound.body.movement.operator).toBe('supervisor');
 
     const stock = await api(app).get('/api/v1/stock?sku=TST-001').expect(200);
     expect(stock.body.items).toHaveLength(1);

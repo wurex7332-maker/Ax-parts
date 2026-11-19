@@ -7,7 +7,7 @@ import { PageHeader } from '../../../components/layout/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { Field, Select, TextInput } from '../../../components/ui/Field';
 import { ErrorState, Skeleton } from '../../../components/ui/Feedback';
-import { CATEGORIES, UNITS } from '../../../domain/enums';
+import { useDictionaries } from '../../../hooks/useDictionaries';
 import { centsToYuan, yuanToCents } from '../../../domain/format';
 import type { UpdateMaterialInput } from '../../../api/port';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -34,10 +34,10 @@ interface FormState {
 const EMPTY: FormState = {
   sku: '',
   name: '',
-  category: CATEGORIES[0],
+  category: '',
   specModel: '',
   brand: '',
-  unit: UNITS[0],
+  unit: '',
   location: '',
   price: '0.00',
   safetyStock: '0',
@@ -53,6 +53,17 @@ export function MaterialFormPage() {
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const categories = useDictionaries('CATEGORY');
+  const units = useDictionaries('UNIT');
+
+  // 字典异步到达后补默认值
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      category: prev.category || categories[0]?.value || '',
+      unit: prev.unit || units[0]?.value || '',
+    }));
+  }, [categories, units]);
 
   const detail = useQuery(`material:${sku ?? 'new'}`, () => api.materials.get(sku as string), {
     tags: ['materials'],
@@ -90,8 +101,8 @@ export function MaterialFormPage() {
     const safety = Number(form.safetyStock);
     if (!Number.isInteger(safety) || safety < 0) next.safetyStock = '安全库存需为不小于 0 的整数';
     if (yuanToCents(form.price) === null) next.price = '单价格式应为非负金额，最多两位小数';
-    if (!CATEGORIES.includes(form.category as (typeof CATEGORIES)[number])) next.category = '类别不合法';
-    if (!UNITS.includes(form.unit as (typeof UNITS)[number])) next.unit = '单位不合法';
+    if (!form.category) next.category = '请选择类别';
+    if (!form.unit) next.unit = '请选择单位';
     setErrors(next);
     const firstKey = Object.keys(next)[0];
     if (firstKey) {
@@ -209,23 +220,21 @@ export function MaterialFormPage() {
           </Field>
 
           <Field label="类别" htmlFor="m-category" required error={errors.category} hint="仅后端允许的 5 个类别">
-            <Select id="m-category" value={form.category} onChange={(event) => set('category', event.target.value)}>
-              {CATEGORIES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
+            <Select
+              id="m-category"
+              value={form.category}
+              onChange={(event) => set('category', event.target.value)}
+              options={categories.map((item) => ({ value: item.value, label: item.label }))}
+            />
           </Field>
 
           <Field label="单位" htmlFor="m-unit" required error={errors.unit} hint="仅 台 / 个 / 盒 / 箱">
-            <Select id="m-unit" value={form.unit} onChange={(event) => set('unit', event.target.value)}>
-              {UNITS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
+            <Select
+              id="m-unit"
+              value={form.unit}
+              onChange={(event) => set('unit', event.target.value)}
+              options={units.map((item) => ({ value: item.value, label: item.label }))}
+            />
           </Field>
 
           <Field label="规格型号" htmlFor="m-specModel">

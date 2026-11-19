@@ -47,7 +47,11 @@ describe('StatusStepper', () => {
 
 describe('AC-10 手机端权限边界', () => {
   it('移动端子树不包含任何 /admin 链接', () => {
-    useSession.getState().setRole('supervisor');
+    useSession.getState().setAuth('test-token', {
+      username: 'supervisor',
+      displayName: '车间主管',
+      role: 'supervisor',
+    });
     const { container } = render(
       <MemoryRouter initialEntries={['/m/scan']}>
         <Routes>
@@ -65,7 +69,11 @@ describe('AC-10 手机端权限边界', () => {
   });
 
   it('operator 视角不出现审批入口', () => {
-    useSession.getState().setRole('operator');
+    useSession.getState().setAuth('test-token', {
+      username: 'operator',
+      displayName: '领用人员',
+      role: 'operator',
+    });
     render(
       <MemoryRouter initialEntries={['/m/scan']}>
         <Routes>

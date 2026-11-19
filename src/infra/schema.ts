@@ -3,10 +3,10 @@ export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS materials (
   sku TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('计算机设备','计算机配件','打印设备','耗材','网络设备')),
+  category TEXT NOT NULL,
   spec_model TEXT NOT NULL DEFAULT '',
   brand TEXT NOT NULL DEFAULT '',
-  unit TEXT NOT NULL CHECK (unit IN ('台','个','盒','箱')),
+  unit TEXT NOT NULL,
   location TEXT NOT NULL,
   price_cents INTEGER NOT NULL DEFAULT 0 CHECK (price_cents >= 0),
   safety_stock INTEGER NOT NULL CHECK (safety_stock >= 0),
@@ -107,4 +107,44 @@ CREATE TABLE IF NOT EXISTS idempotency_records (
   response_json TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('warehouse','supervisor','buyer','operator')),
+  status TEXT NOT NULL DEFAULT 'ENABLED' CHECK (status IN ('ENABLED','DISABLED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_login_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+CREATE TABLE IF NOT EXISTS dictionaries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT NOT NULL CHECK (type IN ('CATEGORY','UNIT')),
+  value TEXT NOT NULL,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 100,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0,1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (type, value)
+);
+CREATE INDEX IF NOT EXISTS idx_dictionaries_type ON dictionaries(type, sort_order);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor TEXT NOT NULL,
+  actor_role TEXT NOT NULL DEFAULT '',
+  action TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  resource_id TEXT NOT NULL DEFAULT '',
+  detail TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_logs(actor);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
 `;

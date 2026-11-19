@@ -1,6 +1,10 @@
 import type {
   AdjustResult,
   AlertItem,
+  AppUser,
+  AuditLog,
+  AuthResult,
+  DictionaryItem,
   AppNotification,
   ArriveResult,
   ConsumptionRankItem,
@@ -23,6 +27,14 @@ import { ApiError } from '../errors';
 import type {
   AdjustInput,
   AlertQuery,
+  AuditQuery,
+  CreateDictionaryInput,
+  CreateUserInput,
+  DictionaryQuery,
+  LoginInput,
+  UpdateDictionaryInput,
+  UpdateUserInput,
+  UserQuery,
   ApiPort,
   CountInput,
   CreateMaterialInput,
@@ -76,6 +88,62 @@ export function createHttpAdapter(): ApiPort {
 
   return {
     mode: 'http',
+
+    auth: {
+      async login(input: LoginInput) {
+        return request<AuthResult>({ method: 'POST', path: ENDPOINTS.authLogin, body: input });
+      },
+      async me() {
+        return request<AppUser>({ method: 'GET', path: ENDPOINTS.authMe });
+      },
+      async logout() {
+        await request<{ ok: boolean }>({ method: 'POST', path: ENDPOINTS.authLogout, body: {} });
+      },
+    },
+
+    users: {
+      async list(query: UserQuery) {
+        return request<Page<AppUser>>({ method: 'GET', path: ENDPOINTS.users, query: toQuery(query) });
+      },
+      async create(input: CreateUserInput) {
+        return request<AppUser>({ method: 'POST', path: ENDPOINTS.users, body: input });
+      },
+      async update(id: number, patch: UpdateUserInput) {
+        return request<AppUser>({ method: 'PATCH', path: ENDPOINTS.user(id), body: patch });
+      },
+      async resetPassword(id: number, password: string) {
+        return request<{ ok: boolean; username: string }>({
+          method: 'POST',
+          path: ENDPOINTS.userResetPassword(id),
+          body: { password },
+        });
+      },
+      async changeOwnPassword(password: string) {
+        return request<{ ok: boolean }>({ method: 'POST', path: ENDPOINTS.mePassword, body: { password } });
+      },
+    },
+
+    audit: {
+      async list(query: AuditQuery) {
+        return request<Page<AuditLog>>({ method: 'GET', path: ENDPOINTS.auditLogs, query: toQuery(query) });
+      },
+    },
+
+    dictionaries: {
+      async list(query: DictionaryQuery) {
+        return request<Page<DictionaryItem>>({
+          method: 'GET',
+          path: ENDPOINTS.dictionaries,
+          query: toQuery(query),
+        });
+      },
+      async create(input: CreateDictionaryInput) {
+        return request<DictionaryItem>({ method: 'POST', path: ENDPOINTS.dictionaries, body: input });
+      },
+      async update(id: number, patch: UpdateDictionaryInput) {
+        return request<DictionaryItem>({ method: 'PATCH', path: ENDPOINTS.dictionary(id), body: patch });
+      },
+    },
 
     async health() {
       try {

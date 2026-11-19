@@ -11,10 +11,14 @@ import {
   UpdateMaterialDto,
 } from './dto';
 import { sumSigned } from '../../domain/stock-math';
+import { DictionariesService } from '../dictionaries/dictionaries.service';
 
 @Injectable()
 export class MaterialsService {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly dictionaries: DictionariesService,
+  ) {}
 
   private get db() {
     return this.dbService.db;
@@ -58,6 +62,8 @@ export class MaterialsService {
   }
 
   create(dto: CreateMaterialDto) {
+    this.dictionaries.assertEnabled('CATEGORY', dto.category, '类别');
+    this.dictionaries.assertEnabled('UNIT', dto.unit, '单位');
     const exists = this.db.prepare('SELECT 1 FROM materials WHERE sku = ?').get(dto.sku);
     if (exists) throw Errors.duplicateSku(dto.sku);
     const now = new Date().toISOString();
@@ -74,6 +80,8 @@ export class MaterialsService {
 
   update(sku: string, dto: UpdateMaterialDto) {
     this.findOne(sku);
+    if (dto.category !== undefined) this.dictionaries.assertEnabled('CATEGORY', dto.category, '类别');
+    if (dto.unit !== undefined) this.dictionaries.assertEnabled('UNIT', dto.unit, '单位');
     const entries = Object.entries(dto).filter(([, value]) => value !== undefined);
     if (entries.length) {
       const assignments = entries
