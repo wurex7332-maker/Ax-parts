@@ -5,7 +5,8 @@ import { displayMessageOf } from '../../../api/errors';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/Dialog';
-import { TextInput } from '../../../components/ui/Field';
+import { SuggestInput } from '../../../components/ui/SuggestInput';
+import { useLocationOptions } from '../../../hooks/useSuggestions';
 import { EmptyState, ErrorState, Skeleton } from '../../../components/ui/Feedback';
 import { TableWrap } from '../../../components/ui/Table';
 import { useDocumentTitle } from '../../../hooks/useA11y';
@@ -28,6 +29,7 @@ export function CountPage() {
   const [results, setResults] = useState<Record<string, RowResult>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const locationOptions = useLocationOptions();
 
   const { data, error, isLoading, refetch } = useQuery(
     `stock:count:${location}`,
@@ -99,11 +101,12 @@ export function CountPage() {
           <label htmlFor="count-location" className="mb-1 block text-xs text-ink-500">
             库位
           </label>
-          <TextInput
+          <SuggestInput
             id="count-location"
             value={locationInput}
-            onChange={(event) => setLocationInput(event.target.value)}
-            placeholder="例如 A-01"
+            onChange={setLocationInput}
+            options={locationOptions}
+            placeholder="例如 A-01（可从已有库位选）"
           />
         </div>
         <Button
