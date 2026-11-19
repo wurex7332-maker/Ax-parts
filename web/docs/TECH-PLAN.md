@@ -42,34 +42,33 @@
 ## 2. 模块拆分
 
 ```
-Ax-parts/
-├─ index.html  package.json  vite.config.ts  tailwind.config.js  vitest.config.ts
-├─ .env.example
-├─ docs/{PRD.md, TECH-PLAN.md, DIVERGENCE.md}
-├─ scripts/serve-static.md          # AC-6 / AC-9 自检清单
-└─ src/
-   ├─ main.tsx  App.tsx  env.ts  styles/index.css
-   ├─ api/
-   │  ├─ port.ts            ★ ApiPort 接口与全部出入参类型（唯一契约面）
-   │  ├─ errors.ts          ApiError + ErrorCode 联合 + 中文映射
-   │  ├─ index.ts           按 env.mode 装配单例
-   │  ├─ http/{endpoints,client,http-adapter}.ts
-   │  └─ mock/{mock-adapter,db,seed,stock,purchase-machine,query,idempotency,validators}.ts
-   ├─ domain/{types,enums,health,purchase,format}.ts   # 纯函数，语义唯一来源
-   ├─ state/{session,query-cache,useQuery,useMutation,invalidations,toast}.ts
-   ├─ routes/{paths,router,guards}.tsx
-   ├─ components/
-   │  ├─ layout/{AdminLayout,MobileLayout,PageHeader,RoleSwitch}.tsx
-   │  ├─ ui/…（Button/Input/Select/Combobox/Field/Modal/ConfirmDialog/Table/Pagination/
-   │  │        EmptyState/ErrorState/Skeleton/Toast/Badge/Card）
-   │  ├─ health/{HealthBadge,HealthLegend,HealthDistribution}.tsx
-   │  ├─ domain/{MaterialCombobox,QtyStepper,MoneyInput,StatusStepper,RequestStatusBadge,
-   │  │          ImageUploadField,MovementTable}.tsx
-   │  └─ a11y/{LiveRegion,FocusOnRouteChange}.tsx
-   ├─ pages/admin/…（dashboard / materials / stock / alerts / purchase / reports / notifications）
-   ├─ pages/mobile/…（home / scan / search / approvals / notifications）
-   ├─ hooks/{useBarcodeScanner,useDocumentTitle,useDebouncedValue}.ts
-   └─ test/{setup,render,contract/adapter-contract}.ts
+Ax-parts/             # 仓库根目录：后端服务（feature/requirement-2）
+└─ web/               # 前端工程（本目录），独立依赖与构建
+   ├─ index.html  package.json  vite.config.ts  tailwind.config.js  postcss.config.js
+   ├─ .env  .env.example  .env.mock  .env.http
+   ├─ docs/{PRD.md, TECH-PLAN.md, DIVERGENCE.md}
+   ├─ scripts/serve-static.md          # AC-6 / AC-9 自检清单
+   └─ src/
+      ├─ main.tsx  App.tsx  env.ts  styles/index.css
+      ├─ api/
+      │  ├─ port.ts            ★ ApiPort 接口与全部出入参类型（唯一契约面）
+      │  ├─ errors.ts          ApiError + ErrorCode 联合 + 中文映射
+      │  ├─ index.ts           按 env.mode 装配单例
+      │  ├─ http/{endpoints,client,http-adapter}.ts
+      │  └─ mock/{mock-adapter,db,seed,stock,purchase-machine,query,validators}.ts
+      ├─ domain/{types,enums,health,purchase,format}.ts   # 纯函数，语义唯一来源
+      ├─ state/{session,query-cache,useQuery,useMutation,invalidations,toast}.ts
+      ├─ routes/{paths,router,guards}.tsx
+      ├─ components/
+      │  ├─ layout/{AdminLayout,MobileLayout,PageHeader,RoleSwitch}.tsx
+      │  ├─ ui/…（Button/Field/Dialog/Table/Feedback/ToastHost）
+      │  ├─ health/{HealthBadge,HealthDistribution}.tsx
+      │  ├─ domain/{MaterialCombobox,QtyStepper,StatusStepper,RequestActions,ImageUploadField}.tsx
+      │  └─ a11y/Announcer.tsx
+      ├─ pages/admin/…（dashboard / materials / stock / alerts / purchase / reports / notifications）
+      ├─ pages/mobile/…（home / scan / search / approvals / notifications）
+      ├─ hooks/{useBarcodeScanner,useA11y,useDebouncedValue}.ts
+      └─ test/setup.ts
 ```
 
 分层规矩：`pages` 只通过 `state` 的 hooks 访问 `api`；`domain` 不 import React；`components` 不含业务请求；三态渲染只允许 `HealthBadge`。

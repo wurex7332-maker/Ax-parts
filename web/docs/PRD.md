@@ -6,6 +6,7 @@
 | 需求来源 | `clarify.md`（requirement.md，已冻结，issue-1794993418876950211） |
 | 契约来源 | GitHub `wurex7332-maker/Ax-parts` 分支 `feature/requirement-2-20261118-0936`（NestJS，已实测提取） |
 | 交付代码分支 | `feature/requirement-3-20261118-0936`（从 `main@bb400af` 新建，不合并 main） |
+| 代码位置 | 仓库 **`web/`** 子目录（根目录归后端服务所有；两工程各自独立 `package.json`） |
 | 文档性质 | 冻结目标、范围、用户、边界与可测试验收标准；是后续开发的唯一依据 |
 
 ---
