@@ -3,6 +3,7 @@ import { Link, NavLink, useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { HealthBadge } from '../../../components/health/HealthBadge';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { Select } from '../../../components/ui/Select';
 import { EmptyState, ErrorState, Skeleton, StatCard } from '../../../components/ui/Feedback';
 import { TableWrap } from '../../../components/ui/Table';
 import { MOVEMENT_TYPES, movementLabel, REQUEST_STATUSES } from '../../../domain/enums';
@@ -85,19 +86,15 @@ function MovementsReport() {
           <label htmlFor="rep-type" className="mb-1 block text-xs text-ink-500">
             类型
           </label>
-          <select
+          <Select
             id="rep-type"
             value={type}
             onChange={(event) => setType(event.target.value)}
-            className="rounded-lg border border-line px-3 py-2 text-sm"
-          >
-            <option value="">全部</option>
-            {MOVEMENT_TYPES.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "全部" },
+              ...MOVEMENT_TYPES.map((item) => ({ value: item.value, label: item.label })),
+            ]}
+          />
         </div>
       </div>
 

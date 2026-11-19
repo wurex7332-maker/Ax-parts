@@ -1,4 +1,6 @@
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+
+export { Select } from './Select';
 
 const CONTROL =
   'w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500';
@@ -71,16 +73,6 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
     />
   );
 });
-
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
-  function Select({ className = '', children, ...rest }, ref) {
-    return (
-      <select ref={ref} {...rest} className={`${CONTROL} ${className}`}>
-        {children}
-      </select>
-    );
-  },
-);
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
   function Textarea({ className = '', rows = 3, ...rest }, ref) {
